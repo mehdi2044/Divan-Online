@@ -97,9 +97,11 @@ function render(focus = false) {
   audioView();
   if (focus && h) { h.focus({preventScroll:true}); h.scrollIntoView({block:'nearest',behavior:'instant'}); }
 }
-function go(n, { animate=true, focus=true } = {}) {
+function go(n, { animate=true, focus=true, fromAudio=false } = {}) {
   if (busy || n < 0 || n >= pages.length || n === index) return;
-  if (pages[n].i !== 0 && playing) pauseAudio();
+  // A manual page turn takes precedence over pending clip auto-advance.
+  // The audio controls themselves can still follow the spoken passage.
+  if (playing && !fromAudio) pauseAudio();
   const swap = () => { index=n; busy=false; render(focus); };
   if (!animate || reduced.matches) { swap(); return; }
   busy=true; el('sheet').classList.add('turn'); setTimeout(swap,240);
@@ -155,14 +157,14 @@ function selectClip(next, play) {
   pauseAudio();cursor=next;failure='';
   const clip=queue[cursor];
   const nextPage=pages.findIndex(p=>p.type==='passage' && p.passage.id===clip.passage.id);
-  if(nextPage>=0 && pages[index]?.i===0)go(nextPage,{animate:false,focus:false});
+  if(nextPage>=0 && pages[index]?.i===0)go(nextPage,{animate:false,focus:false,fromAudio:true});
   if(play)playAudio(); else audioView();
 }
 async function playAudio() {
   const clip=queue[cursor];
   if(busy || !clip || pages[index]?.i!==0)return;
   const nextPage=pages.findIndex(p=>p.type==='passage' && p.passage.id===clip.passage.id);
-  if(nextPage>=0)go(nextPage,{animate:false,focus:false});
+  if(nextPage>=0)go(nextPage,{animate:false,focus:false,fromAudio:true});
   failure='';
   const token=++ticket;
   if(loaded!==cursor || player.ended){player.src=clip.src;loaded=cursor;}

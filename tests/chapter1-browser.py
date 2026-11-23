@@ -125,6 +125,19 @@ with sync_playwright() as p:
             page.wait_for_function("() => {const a=document.querySelector('audio'); return a.readyState>=2 && Number.isFinite(a.duration)}")
             media.evaluate("a => { a.currentTime = a.duration - 0.20; }")
             page.wait_for_function("(id) => document.querySelector('.is-speaking')?.dataset.segmentId===id",arg=ids[1])
+            # A user-initiated turn inside Chapter 1 must not be undone
+            # by the media's ended event and delayed next-clip callback.
+            page.locator('#audio-prev').click()
+            page.wait_for_function("() => {const a=document.querySelector('audio'); return a.readyState>=2 && Number.isFinite(a.duration) && !a.paused}")
+            media.evaluate("a => { a.currentTime = a.duration - 1.0; }")
+            next_page(page)
+            assert page.locator('.chapter-passage p').first.get_attribute('id')=='s1-p05'
+            page.wait_for_timeout(1500)
+            assert page.locator('.chapter-passage p').first.get_attribute('id')=='s1-p05'
+            assert media.evaluate('a => a.paused')
+            assert page.locator('.is-speaking').count()==0
+            play.click()
+            assert page.locator('.chapter-passage p').first.get_attribute('id')=='s1-p04'
             go_to_chapter(page,2);assert media.evaluate('a => a.paused')
         else:
             assert play.is_disabled() and 'دسترس نیست' in page.locator('#audio-description').text_content()
